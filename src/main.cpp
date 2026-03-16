@@ -29,61 +29,67 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
       std::string rxValue = pCharacteristic->getValue();
+
       if (rxValue.length() > 0) {
         for (int i = 0; i < rxValue.length(); i++) {
           Serial.print(rxValue[i]);
         }
+        Serial.println();
       }
     }
 };
 
 void setup() {
+
   Serial.begin(115200);
   delay(1000);
+
   Serial.println();
   Serial.println("Iniciando BLE Serial Bridge en ESP32-S3");
-  
-  // Inicializar BLE
+
   BLEDevice::init("ESP32-S3-Bridge");
+
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
-  
-  // Crear servicio
+
   BLEService *pService = pServer->createService(SERVICE_UUID);
-  
-  // Característica TX (envía datos al teléfono)
+
+  // TX -> envía datos al móvil
   pTxCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID_TX,
                       BLECharacteristic::PROPERTY_NOTIFY
                     );
+
   pTxCharacteristic->addDescriptor(new BLE2902());
-  
-  // Característica RX (recibe datos del teléfono)
+
+  // RX -> recibe datos del móvil
   pRxCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID_RX,
                       BLECharacteristic::PROPERTY_WRITE
                     );
+
   pRxCharacteristic->setCallbacks(new MyCallbacks());
-  
-  // Iniciar servicio
+
   pService->start();
-  
-  // Configurar y empezar advertising
+
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
   pAdvertising->start();
-  
+
   Serial.println("Esperando conexión BLE...");
   Serial.println("Nombre: ESP32-S3-Bridge");
 }
 
 void loop() {
-  // Enviar datos del Serial Monitor al BLE
+
   if (Serial.available() && deviceConnected) {
+
     char c = Serial.read();
+
     char str[2] = {c, '\0'};
+
     pTxCharacteristic->setValue((uint8_t*)str, 1);
     pTxCharacteristic->notify();
   }
-  
+
   delay(20);
 }
